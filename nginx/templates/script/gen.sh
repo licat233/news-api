@@ -27,7 +27,7 @@ rewrite_file="vhost/dev.conf.template"
 weblist=(
     "mysql,mysql_manage:80"
     "redis,redis_manage:80"
-    "api,api:8888"
+    # "api,api:8888"
 )
 
 # split 方法的实现
