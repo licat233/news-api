@@ -1,0 +1,51 @@
+api:
+    dir: ""
+    ignoreColumns: []
+    ignoreTables: []
+    jsonStyle: gen_zero
+    jwt: ""
+    middleware: []
+    multiple: false
+    prefix: ""
+    serviceName: ""
+    status: false
+    tables: []
+database:
+    dsn: ""
+    ignoreColumns: []
+    ignoreTables: []
+    src: "../data/news.sql"
+    tables: []
+logic:
+    api:
+        dir: ""
+        fileStyle: genZero
+        ignoreTables: []
+        status: false
+        tables: []
+        useRpc: false
+    rpc:
+        dir: ""
+        fileStyle: genZero
+        ignoreTables: []
+        multiple: false
+        status: false
+        tables: []
+    status: false
+model:
+    dir: "../model"
+    ignoreColumns: []
+    ignoreTables: []
+    status: true
+    tables: []
+proto:
+    dir: ""
+    fileStyle: genZero
+    goPackage: ""
+    ignoreColumns: []
+    ignoreTables: []
+    multiple: false
+    package: ""
+    serviceName: ""
+    status: false
+    tables: []

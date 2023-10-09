@@ -1,0 +1,151 @@
+version: "3.1"
+services:
+  api:
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    image: licat/modd:latest
+    restart: on-failure
+    privileged: true
+    stdin_open: true # 打开标准输入，可以接受外部输入
+    tty: true
+    hostname: api
+    container_name: ${COMPOSE_PROJECT_NAME}_api
+    working_dir: /app
+    command: "modd"
+    expose:
+      - 8888
+    healthcheck:
+      test: "wget -q -Y off -O /dev/null http://localhost:8888/ping > /dev/null 2>&1"
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    environment:
+      - OSS_ACCESS_KEY_ID
+      - OSS_ACCESS_KEY_SECRET
+      - MYSQL_HOST
+      - MYSQL_PORT
+      - MYSQL_DATABASE
+      - MYSQL_USERNAME
+      - MYSQL_PASSWORD
+      - MYSQL_ROOT_PASSWORD
+      - MYSQL_CONN_OPTIONS
+      - REDIS_HOST
+      - REDIS_PORT
+      - REDIS_PASSWORD
+    depends_on:
+      - mysql
+      - redis
+    volumes:
+      - ./:/app
+      - go_volume:/go:rw
+      # - ./logs:/app/logs # 生产环境
+
+  mysql: # mysql数据库
+    image: mysql:latest
+    hostname: mysql
+    container_name: ${COMPOSE_PROJECT_NAME}_mysql
+    command: --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+    environment:
+      - TZ=Asia/Shanghai
+      - MYSQL_ROOT_PASSWORD
+      - MYSQL_DATABASE
+    expose:
+      - 3306
+    volumes:
+      - mysql_volume:/var/lib/mysql
+      - ./data/news-data.sql:/data/news-data.sql:rw
+
+  redis: # redis
+    image: redis:alpine
+    hostname: redis
+    container_name: ${COMPOSE_PROJECT_NAME}_redis
+    restart: on-failure
+    expose:
+      - 6379
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+    volumes:
+      - redis_volume:/data:rw
+
+  mysql_manage: #phpmyadmin
+    image: phpmyadmin:latest
+    hostname: mysql_manage
+    container_name: ${COMPOSE_PROJECT_NAME}_mysql_manage
+    restart: on-failure
+    expose:
+      - 80
+      - 8080
+    # ports:
+    #   - 6007:80
+    environment:
+      - TZ=${TZ}
+      - PMA_ARBITRARY=1 #当设置为 1 连接到任意服务器将被允许
+      - PMA_HOST=mysql #定义 MySQL 服务器的地址/主机名
+      - PMA_PORT=3306 # 定义 MySQL 服务器的端口
+      - PMA_VERBOSE=im_mysql #MySQL 服务器的详细名称
+      - PMA_USER=root
+      - PMA_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - PMA_PMADB=phpmyadmin
+      - PMA_CONTROLUSER=admin
+      - PMA_CONTROLPASS=123456
+    depends_on:
+      - mysql
+
+  redis_manage: #phpredisadmin
+    image: erikdubbelboer/phpredisadmin:latest
+    hostname: redis_manage
+    container_name: ${COMPOSE_PROJECT_NAME}_redis_manage
+    restart: on-failure
+    expose:
+      - 80
+    # ports:
+    #   - 6008:80
+    environment:
+      - TZ=${TZ}
+      - REDIS_1_HOST=redis
+      - REDIS_1_PORT=6379
+      # - ADMIN_USER=${REDIS_MANAGE_USERNAME} # Redis 可视化管理用户名称
+      # - ADMIN_PASS=${REDIS_MANAGE_PASSWORD} # Redis 可视化管理用户密码
+    depends_on:
+      - redis
+
+  # Nginx服务
+  nginx:
+     image: nginx:latest
+     hostname: nginx
+     container_name: ${COMPOSE_PROJECT_NAME}_nginx
+     restart: always
+     privileged: true
+     environment:
+      - TZ
+      - DOMAIN
+      - NGINX_USERNAME
+      - NGINX_PASSWORD
+      - API_PORT
+     ports:
+      - ${NGINX_HTTP_PORT}:80
+     volumes:
+      - ./nginx/templates:/etc/nginx/templates
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/ssl:/etc/nginx/ssl
+      - ./nginx/www:/www
+      - nginx_volume:/var/log/nginx
+     depends_on:
+      - api
+      - redis
+      - mysql
+      - mysql_manage
+      - redis_manage
+
+volumes:
+  mysql_volume:
+  redis_volume:
+  go_volume:
+  nginx_volume:

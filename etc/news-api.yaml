@@ -1,0 +1,25 @@
+Name: news-api
+Host: 0.0.0.0
+Port: 8888
+
+Mysql:
+  DataSource: root:${MYSQL_ROOT_PASSWORD}@tcp(${MYSQL_HOST}:${MYSQL_PORT})/${MYSQL_DATABASE}?${MYSQL_CONN_OPTIONS}
+
+AliOss:
+  BucketName: "news-storage"
+  Endpoint: "oss-cn-hongkong.aliyuncs.com"
+  OssDomain: "http://news-storage.oss-cn-hongkong.aliyuncs.com"
+
+Auth:
+  AccessSecret: ${JWT_SECRET}
+  AccessExpire: 86400
+
+Log:
+  ServiceName: news-api
+  Level: error
+  Mode: file
+
+CacheRedis:
+  - Host: ${REDIS_HOST}:${REDIS_PORT}
+    Pass: ${REDIS_PASSWORD}
+    Type: node
