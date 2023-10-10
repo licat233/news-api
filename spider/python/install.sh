@@ -6,3 +6,4 @@ pip install tqdm
 pip install mysql.connector
 pip install threading
 pip install oss2
+pip install pymysql-pool

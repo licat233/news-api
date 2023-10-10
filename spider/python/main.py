@@ -1,18 +1,21 @@
 import requests
-import pandas as pd
+# import pandas as pd
 from bs4 import BeautifulSoup
 import time
 from tqdm import tqdm
 import oss2
-import requests
 from oss2.credentials import EnvironmentVariableCredentialsProvider
 import os
 import uuid
 import threading
-import mysql.connector
-import sys
+import pymysqlpool
+# import sys
 
-startAt = time.time()
+# pymysqlpool.logger.setLevel('DEBUG')
+config={'host':'localhost', 'user':'root', 'password':'', 'database':'news', 'autocommit':True}
+
+# 创建连接池
+pool = pymysqlpool.ConnectionPool(size=25, maxsize=25, pre_create_num=25, name='pool', **config)
 
 headers = {
     'user-agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Mobile Safari/537.36 Edg/110.0.1587.63',
@@ -25,25 +28,18 @@ proxy = {
 
 baseUrl = "https://read01.com/zh-tw"
 
-ossBaseUrl = "http://news-storage.oss-cn-hongkong.aliyuncs.com"
+ossBaseUrl = "https://news-storage.oss-cn-hongkong.aliyuncs.com"
 
 # 从环境变量中获取访问凭证。运行本代码示例之前，请确保已设置环境变量 OSS_ACCESS_KEY_ID 和 OSS_ACCESS_KEY_SECRET 。
 auth = oss2.ProviderAuth(EnvironmentVariableCredentialsProvider())
 # yourEndpoint填写Bucket所在地域对应的Endpoint。以华东1（杭州）为例，Endpoint填写为https://oss-cn-hangzhou.aliyuncs.com。
 # 填写Bucket名称。
-bucket = oss2.Bucket(
-    auth, 'http://oss-cn-hongkong.aliyuncs.com', 'news-storage')
+# 注意，这里的endpoint只能使用http，不能使用https，会报错
+bucket = oss2.Bucket(auth, 'http://oss-cn-hongkong.aliyuncs.com', 'news-storage')
 
 articleTableName = "article"
 imageTableName = "image"
 categoryTableName = "category"
-
-def createDatabaseConn():
-    # 连接MySQL数据库
-    cnx = mysql.connector.connect(
-        user='root', password='', host='localhost', database='news')
-    return cnx
-
 
 def extract_uid(url):
     slash_index = url.rfind("/")  # 查找最后一个斜杠的索引位置
@@ -51,132 +47,117 @@ def extract_uid(url):
     code = url[slash_index + 1:dot_index]  # 提取斜杠和点之间的部分
     return code
 
+def listQuery(table_name, page_size, page):
+    offset = (page - 1) * page_size
+    # 从连接池获取连接
+    with pool.get_connection() as cnx:
+        # 执行查询语句
+        query = "SELECT * FROM " + table_name + " LIMIT %s OFFSET %s"
+        cursor = cnx.cursor()
+        data = (page_size, offset)
+        cursor.execute(query, data)
+        result = cursor.fetchall()
+        return result
+
+def getTotalCount(table_name):
+    total_records = 0
+    with pool.get_connection() as cnx:
+        # 执行查询语句
+        query = "SELECT COUNT(*) FROM " + table_name
+        cursor = cnx.cursor()
+        cursor.execute(query)
+        result = cursor.fetchone()
+        total_records = result[0]
+        return total_records
+
 
 def queryCategoryList():
     # 执行查询语句
     query = "SELECT id, uuid, name, raw_name FROM "+categoryTableName
-    cnx = createDatabaseConn()
-    cursor = cnx.cursor()
-    cursor.execute(query)
-    results = cursor.fetchall()
-    # 关闭游标和数据库连接
-    cursor.close()
-    cnx.close()
-    return results
+    with pool.get_connection() as cnx:
+        cursor = cnx.cursor()
+        cursor.execute(query)
+        results = cursor.fetchall()
+        return results
 
 
 dbCategoriesCache = queryCategoryList()
 # 查找栏目id，-1表示不存在
 
-
 def queryCategoriesID(category_name):
     if category_name == "":
         return -1
     global dbCategoriesCache
-    for id, name, raw_name in dbCategoriesCache:
+    for id, uuid, name, raw_name in dbCategoriesCache:
         if raw_name == category_name:
             return id
     # 如果不存在，则创建
     insert_query = "INSERT INTO "+categoryTableName+" (uuid, name, raw_name) VALUES (%s, %s, %s)"
     uuidV = str(uuid.uuid4())
     data = (uuidV, category_name, category_name)
-    cnx = createDatabaseConn()
-    cursor = cnx.cursor()
-    cursor.execute(insert_query, data)
-    cnx.commit()
-    # 关闭游标和数据库连接
-    cursor.close()
-    cnx.close()
+    with pool.get_connection() as cnx:
+        cursor = cnx.cursor()
+        cursor.execute(insert_query, data)
+        cnx.commit()
     # 更新
     dbCategoriesCache = queryCategoryList()
 
     return queryCategoriesID(name)
 
 
-def queryArticleExist(uid):
+def queryArticleExist(raw_uid):
     # 执行查询语句
-    query = "SELECT * FROM "+articleTableName+" WHERE raw_uid=%s LIMIT 1"
-    cnx = createDatabaseConn()
-    cursor = cnx.cursor()
-    data = (uid,)
-    cursor.execute(query, data)
-    result = cursor.fetchone()
-
-    # 关闭游标和数据库连接
-    cursor.close()
-    cnx.close()
-
-    # 检查查询结果是否存在数据
-    if result:
-        return True
-    else:
-        return False
-
-def queryArticlesCount():
-    # 执行查询语句
-    query = "SELECT COUNT(*) FROM "+articleTableName
-    cnx = createDatabaseConn()
-    cursor = cnx.cursor()
-    cursor.execute(query)
-    result = cursor.fetchone()
-
-    # 关闭游标和数据库连接
-    cursor.close()
-    cnx.close()
-
-    return result[0]
+    query = "SELECT COUNT(*) FROM "+articleTableName+" WHERE raw_uid=%s LIMIT 1"
+    with pool.get_connection() as cnx:
+        cursor = cnx.cursor()
+        data = (raw_uid,)
+        cursor.execute(query, data)
+        result = cursor.fetchone()
+        count = result[0]
+        return count != 0
 
 def queryImageExist(source):
     # 执行查询语句
     query = "SELECT * FROM "+imageTableName+" WHERE source =%s LIMIT 1"
-    cnx = createDatabaseConn()
-    cursor = cnx.cursor()
-    data = (source,)
-    cursor.execute(query, data)
-    result = cursor.fetchone()
-
-    # 关闭游标和数据库连接
-    cursor.close()
-    cnx.close()
-
-    # 检查查询结果是否存在数据
-    if result:
-        return True, result[2]
-    else:
+    with pool.get_connection() as cnx:
+        cursor = cnx.cursor()
+        data = (source,)
+        cursor.execute(query, data)
+        result = cursor.fetchone()
+        if result:
+            id = result[0]
+            src = result[2]
+            if src ==  "":
+                query = "DELETE FROM " + imageTableName + " WHERE id=%s"
+                cursor.execute(query, (id,))
+                cnx.commit()
+                return False, ""
+            return True, src
         return False, ""
-
 
 def insertArticle(raw_uid, title, category_name, publish_at, author, cover, text_content, html_content):
     insert_query = "INSERT INTO "+articleTableName + \
-        " (uuid, raw_uid, title, category_id, publish_at, author, cover, text_content, html_content, tags) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+        " (uuid, raw_uid, title, category_id, publish_at, author, cover, text_content, html_content, tags) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
     uuidV = str(uuid.uuid4())
     tags = category_name
     category_id = queryCategoriesID(category_name)
-    data = (uuidV, raw_uid, title, category_id,
-            publish_at, author, cover, text_content, html_content, tags)
-    cnx = createDatabaseConn()
-    cursor = cnx.cursor()
-    cursor.execute(insert_query, data)
-    cnx.commit()
-    # 关闭游标和数据库连接
-    cursor.close()
-    cnx.close()
 
+    with pool.get_connection() as cnx:
+        cursor = cnx.cursor()
+        data = (uuidV, raw_uid, title, category_id, publish_at, author, cover, text_content, html_content, tags)
+        cursor.execute(insert_query, data)
+        cnx.commit()
 
 def insertImage(source, src):
     # 数据不存在，执行保存或其他操作
     insert_query = "INSERT INTO "+imageTableName+" (source, src) VALUES (%s, %s)"
     data = (source, src)
-    cnx = createDatabaseConn()
-    cursor = cnx.cursor()
-    cursor.execute(insert_query, data)
-    cnx.commit()
-    # 关闭游标和数据库连接
-    cursor.close()
-    cnx.close()
+    with pool.get_connection() as cnx:
+        cursor = cnx.cursor()
+        cursor.execute(insert_query, data)
+        cnx.commit()
 
-
-def get_max_page_record(session, category_id):
+def spider_max_page_record(session, category_id):
     params = {
         'page': 9999,
     }
@@ -199,7 +180,7 @@ def get_max_page_record(session, category_id):
     return 0, 0
 
 
-def get_page(session, category_id, page):
+def spider_page(session, category_id, page):
     params = {
         'page': page,
     }
@@ -238,21 +219,21 @@ def get_page(session, category_id, page):
     return title_urls, False
 
 
-def get_content(session, url):
+def spider_content(session, url):
     response = session.get(url, headers=headers)
     response.raise_for_status()
 
     html = response.text
     soup = BeautifulSoup(html, 'html.parser')
 
-    dt, meta = soup.find('div', {'class': 'meta'}).text.strip().split('\xa0')
+    publish_at, meta = soup.find('div', {'class': 'meta'}).text.strip().split('\xa0')
     # 开始识别并移除广告
     # 根据CSS类名进行筛选
     ads = soup.find_all(class_='axslot')
     for ad in ads:
         ad.decompose()  # 直接移除广告标签及其内容
     contentE = soup.find('div', {'class': 'content'})
-    # 更换图片
+    # 更换图片url
     imgsE = contentE.find_all('img')
     for imgE in imgsE:
         img_url = imgE.get('data-src', None)
@@ -272,30 +253,30 @@ def get_content(session, url):
         imgE['src'] = new_img_url
         imgE['data-src'] = new_img_url
 
+    # 处理figure
     # 查找所有的 figure
     figuresE = contentE.find_all('figure')
     # 查找每个下面的img
     for figureE in figuresE:
         imgE = figureE.find('img')
-        if imgE:
-            img_url = imgE.get('data-src', None)
+        if imgE is None:
+            continue
+        img_url = imgE.get('data-src', None)
+        if img_url is None:
+            img_url = imgE.get('src', None)
             if img_url is None:
-                img_url = imgE.get('src', None)
-                if img_url is None:
-                    figureE.extract()
-                    continue
-            img_tag = soup.new_tag('img')
-            img_tag['src'] = img_url
-            img_tag['data-src'] = img_url
-            figureE.insert_after(img_tag)
+                figureE.extract()
+                continue
+        img_tag = soup.new_tag('img')
+        img_tag['src'] = img_url
+        img_tag['data-src'] = img_url
+        figureE.insert_after(img_tag)
         figureE.extract()
 
     textContent = contentE.text.strip().replace('\xa0', '')
     htmlContent = contentE.prettify()
-    # 打印修改后的HTML代码
-    # print(htmlContent)
 
-    return dt, meta, textContent, htmlContent
+    return publish_at, meta, textContent, htmlContent
 
 
 def generate_random_filename(filename):
@@ -311,11 +292,12 @@ def generate_random_filename(filename):
     return new_filename
 
 
-def upload_to_oss(image_url, dirname):
+def upload_to_oss(image_url, dirname, count=1):
     # 判断该图片是否已存在于oss中
     exist, src = queryImageExist(image_url)
-    if exist:
+    if exist and src != "":
         return src
+
     # requests.get返回的是一个可迭代对象（Iterable），此时Python SDK会通过Chunked Encoding方式上传。
     # 填写网络流地址。
     input = requests.get(image_url)
@@ -329,7 +311,13 @@ def upload_to_oss(image_url, dirname):
         insertImage(image_url, src)
         return src
     except oss2.exceptions.ServerError as e:
-        print(f'上传 {newName} 图片失败，来源：{image_url}')
+        # 上传失败，再上传一次，最多允许2次
+        count += 1
+        if count > 3:
+            print(f'上传 {newName} 图片失败，来源：{image_url}')
+            return ""
+        print(f'再次上传 {newName} 图片，来源：{image_url}')
+        return upload_to_oss(image_url, dirname, count)
     return ""
 
 def process_run(tasks):
@@ -345,55 +333,44 @@ def process_run(tasks):
     for t in ts_arr2:
         t.join()
 
-def category_handler(category, category_id):
+def category_handler(category_name, category_id):
     retries = 3  # 设置重试次数
     retry_delay = 3  # 设置重试间隔（秒）
 
-    def aticle_handler(session, title, url, cover, uid, callback):
+    def aticle_handler(session, title, url, cover, raw_uid, callback):
         if title == "" or url == "" or cover == "":
             if callback:
                 callback()
             return
         for attempt in range(retries):
             try:
-                dt, meta, textContent, htmlContent = get_content(session, url)
-                try_count = 0
+                publish_at, meta, textContent, htmlContent = spider_content(session, url)
                 ossCover = upload_to_oss(cover, "covers")
-                while ossCover == "" and try_count < 3:
-                    ossCover = upload_to_oss(cover, "covers")
                 if ossCover == "":
                     continue
                 author = meta.replace('來源：', '')
-                insertArticle(uid, title, category, dt, author, ossCover, textContent, htmlContent)
+                insertArticle(raw_uid, title, category_name, publish_at, author, ossCover, textContent, htmlContent)
                 break
             except requests.exceptions.RequestException as e:
-                print(f'获取 {category} 类别的文章失败：{title} (第 {attempt + 1} 次重试)')
+                print(f'获取 {category_name} 类别的文章失败：{title} (第 {attempt + 1} 次重试)')
                 if attempt < retries - 1:
                     print(f'将在 {retry_delay} 秒后重试...')
                     time.sleep(retry_delay)
                 else:
                     print(f'达到最大重试次数，放弃获取文章：{title}')
                     break
-            except oss2.exceptions.ServerError as e:
-                print(f'上传 {uid} 文章的图片失败：{title} (第 {attempt + 1} 次重试)')
-                if attempt < retries - 1:
-                    print(f'将在 {retry_delay} 秒后重试...')
-                    time.sleep(retry_delay)
-                else:
-                    print(f'达到最大重试次数，放弃上传图片：{title}')
-                    break
         if callback:
             callback()
 
     with requests.Session() as session:
-        max_pagenum, max_item = get_max_page_record(session, category_id)
+        max_pagenum, max_item = spider_max_page_record(session, category_id)
         # 创建进度条对象
         progress_bar = tqdm(total=max_item)
 
         def bar_add():
             progress_bar.update(1)
         for page in range(1, max_pagenum+1):
-            title_urls, overflow = get_page(session, category_id, page)
+            title_urls, overflow = spider_page(session, category_id, page)
             if overflow:
                 break
             # for title, url, cover, uid in title_urls:
@@ -405,21 +382,24 @@ def category_handler(category, category_id):
                 if title == "" or url == "" or cover == "":
                     bar_add()
                     continue
-                t = threading.Thread(target=aticle_handler, args=(
-                    session, title, url, cover, uid, bar_add), name=uid)
+                t = threading.Thread(target=aticle_handler, args=(session, title, url, cover, uid, bar_add), name=uid)
                 tasks.append(t)
             process_run(tasks)
         progress_bar.close()
+    # 写入xlsx文件
     # df = pd.DataFrame(post_infos)
     # df.to_excel(f'{category}.xlsx', index=False)
 
 
 def main():
-    count = queryArticlesCount()
-    print("当前篇数: ", count)
+    startAt = time.time()
+
+    # count = getTotalCount(articleTableName)
+    # print("当前篇数: ", count)
     categories = [('健康', 'c508'), ('美食', 'c710'), ('時尚', 'c942'), ('运势', 'c313'), ('娛樂', 'c475'),
                   ('旅游', 'c808'), ('動漫', 'c921'), ('家居', 'c515'), ('科學', 'c610'), ('文化', 'c502'), ('歷史', 'c616')]
     for category, category_id in categories:
+        print(f"开始爬取 【{category}】 类目")
         category_handler(category, category_id)
 
     endAt = time.time()
