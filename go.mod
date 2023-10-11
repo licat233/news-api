@@ -1,6 +1,6 @@
 module news
 
-go 1.21.1
+go 1.21.2
 
 require (
 	github.com/Masterminds/squirrel v1.5.4
