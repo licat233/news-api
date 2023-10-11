@@ -1,0 +1,62 @@
+syntax = "v1"
+
+type Request {
+	Name string `path:"name,options=you|me"`
+}
+
+type Response {
+	Message string `json:"message"`
+}
+
+service news-api {
+	@handler Ping
+	get /ping returns (Response)
+	@handler Test
+	get /test returns (Response)
+}
+
+type NewsFlowReq {
+	CategoryUUID string `form:"categoryUUID,optional"`
+	Length       int64  `form:"length,optional"`
+	PageSize     int64  `form:"pageSize,optional,default=10"`
+}
+
+type NewsMoreReq {
+	ArticleUUID string `form:"uuid,optional"`
+}
+
+type NewsDetailsReq {
+	ArticleUUID string `form:"uuid"`
+}
+
+type FeedBackReq {
+	Uuid  string `json:"uuid"`
+	Field string `json:"field,optional"`
+}
+
+@server(
+	group: news
+	prefix: /v1/news
+)
+service news-api {
+	@handler NewsFlow
+	get /flow(NewsFlowReq) returns(Response)
+
+	@handler NewsMore
+	get /more(NewsMoreReq) returns(Response)
+
+	@handler NewsDetails
+	get /details(NewsDetailsReq) returns(Response)
+
+	@handler FeedBack
+	post /feedback(FeedBackReq) returns(Response)
+}
+
+@server(
+	group: category
+	prefix: /v1/category
+)
+service news-api {
+	@handler GetAll
+	get /all returns(Response)
+}

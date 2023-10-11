@@ -16,25 +16,23 @@ type Deed struct {
 // 	fmt.Println("Pong Deed")
 // }
 
-type Action struct {
+type Animal struct {
 }
 
-func (a *Action) Call() {
-	fmt.Println("行为")
+func (a *Animal) Call() {
+	fmt.Println("旺旺")
 }
 
-func (a *Action) Ping() {
-	fmt.Println("Pong Action")
+func (a *Animal) Ping() {
+	fmt.Println("Pong Animal")
 }
 
 type Person struct {
-	*Action
-	*Deed
-	Name string
+	*Animal
 }
 
 func (p *Person) Call() {
-	fmt.Println(p.Name)
+	fmt.Println("你好")
 }
 
 func (p *Person) Ping() {
@@ -44,7 +42,7 @@ func (p *Person) Ping() {
 func Test_Interface(t *testing.T) {
 	type A interface {
 		Call()
-		Ping()
+		// Ping()
 	}
 	type B interface {
 		Call()
@@ -54,7 +52,6 @@ func Test_Interface(t *testing.T) {
 		A
 		B
 		Call()
-		Ping()
 	}
 
 	var _ Common = (*Person)(nil)
@@ -64,9 +61,7 @@ func Test_Interface(t *testing.T) {
 	}
 
 	p := &Person{
-		Name:   "张三",
-		Action: &Action{},
-		Deed:   &Deed{},
+		Animal: &Animal{},
 	}
 
 	run(p)

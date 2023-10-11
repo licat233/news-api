@@ -22,3 +22,8 @@ type NewsMoreReq struct {
 type NewsDetailsReq struct {
 	ArticleUUID string `form:"uuid"`
 }
+
+type FeedBackReq struct {
+	Uuid  string `json:"uuid"`
+	Field string `json:"field,optional"`
+}

@@ -51,6 +51,7 @@ type (
 		HtmlContent sql.NullString `db:"html_content"`
 		ViewsCount  int64          `db:"views_count"`
 		Tags        string         `db:"tags"`
+		Status      int64          `db:"status"`
 		CreateAt    time.Time      `db:"create_at"`
 		UpdateAt    time.Time      `db:"update_at"`
 	}
@@ -99,8 +100,8 @@ func (m *defaultArticleModel) FindOne(ctx context.Context, id int64) (*Article, 
 func (m *defaultArticleModel) Insert(ctx context.Context, data *Article) (sql.Result, error) {
 	articleIdKey := fmt.Sprintf("%s%v", cacheArticleIdPrefix, data.Id)
 	ret, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {
-		query := fmt.Sprintf("insert into %s (%s) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", m.table, articleRowsExpectAutoSet)
-		return conn.ExecCtx(ctx, query, data.Uuid, data.RawUid, data.Title, data.CategoryId, data.PublishAt, data.Author, data.Cover, data.TextContent, data.HtmlContent, data.ViewsCount, data.Tags)
+		query := fmt.Sprintf("insert into %s (%s) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", m.table, articleRowsExpectAutoSet)
+		return conn.ExecCtx(ctx, query, data.Uuid, data.RawUid, data.Title, data.CategoryId, data.PublishAt, data.Author, data.Cover, data.TextContent, data.HtmlContent, data.ViewsCount, data.Tags, data.Status)
 	}, articleIdKey)
 	return ret, err
 }
@@ -109,7 +110,7 @@ func (m *defaultArticleModel) Update(ctx context.Context, data *Article) error {
 	articleIdKey := fmt.Sprintf("%s%v", cacheArticleIdPrefix, data.Id)
 	_, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {
 		query := fmt.Sprintf("update %s set %s where `id` = ?", m.table, articleRowsWithPlaceHolder)
-		return conn.ExecCtx(ctx, query, data.Uuid, data.RawUid, data.Title, data.CategoryId, data.PublishAt, data.Author, data.Cover, data.TextContent, data.HtmlContent, data.ViewsCount, data.Tags, data.Id)
+		return conn.ExecCtx(ctx, query, data.Uuid, data.RawUid, data.Title, data.CategoryId, data.PublishAt, data.Author, data.Cover, data.TextContent, data.HtmlContent, data.ViewsCount, data.Tags, data.Status, data.Id)
 	}, articleIdKey)
 	return err
 }

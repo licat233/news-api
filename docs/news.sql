@@ -11,7 +11,7 @@
  Target Server Version : 80033
  File Encoding         : 65001
 
- Date: 09/10/2023 12:09:37
+ Date: 11/10/2023 10:41:50
 */
 
 SET NAMES utf8mb4;
@@ -34,6 +34,7 @@ CREATE TABLE `article` (
   `html_content` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
   `views_count` int unsigned DEFAULT '0',
   `tags` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT '',
+  `status` tinyint DEFAULT '1',
   `create_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `update_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -42,8 +43,11 @@ CREATE TABLE `article` (
   KEY `idx_author` (`author`) USING BTREE,
   KEY `idx_tags` (`tags`) USING BTREE,
   KEY `idx_publish_at` (`publish_at`) USING BTREE,
-  KEY `idx_uuid` (`uuid`) USING BTREE
-) ENGINE=InnoDB AUTO_INCREMENT=24858 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  KEY `idx_uuid` (`uuid`) USING BTREE,
+  KEY `idx_category_id` (`category_id`) USING BTREE,
+  KEY `idx_status` (`status`) USING BTREE,
+  KEY `idx_title` (`title`) USING BTREE
+) ENGINE=InnoDB AUTO_INCREMENT=25219 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ----------------------------
 -- Table structure for category
@@ -73,6 +77,6 @@ CREATE TABLE `image` (
   PRIMARY KEY (`id`),
   KEY `idx_source` (`source`) USING BTREE,
   KEY `idx_src` (`src`) USING BTREE
-) ENGINE=InnoDB AUTO_INCREMENT=178862 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=180602 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;

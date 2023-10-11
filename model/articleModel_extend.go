@@ -34,6 +34,7 @@ type article_model interface {
 	FindByHtmlContent(ctx context.Context, htmlContent sql.NullString) (*Article, error)
 	FindByViewsCount(ctx context.Context, viewsCount int64) (*Article, error)
 	FindByTags(ctx context.Context, tags string) (*Article, error)
+	FindByStatus(ctx context.Context, status int64) (*Article, error)
 	FindsByIds(ctx context.Context, ids []int64) ([]*Article, error)
 	FindsByUuids(ctx context.Context, uuids []string) ([]*Article, error)
 	FindsByRawUids(ctx context.Context, rawUids []string) ([]*Article, error)
@@ -46,6 +47,7 @@ type article_model interface {
 	FindsByHtmlContents(ctx context.Context, htmlContents []sql.NullString) ([]*Article, error)
 	FindsByViewsCounts(ctx context.Context, viewsCounts []int64) ([]*Article, error)
 	FindsByTagslist(ctx context.Context, tagslist []string) ([]*Article, error)
+	FindsByStatuslist(ctx context.Context, statuslist []int64) ([]*Article, error)
 
 	FindsById(ctx context.Context, id int64) ([]*Article, error)
 	FindsByUuid(ctx context.Context, uuid string) ([]*Article, error)
@@ -59,6 +61,7 @@ type article_model interface {
 	FindsByHtmlContent(ctx context.Context, htmlContent sql.NullString) ([]*Article, error)
 	FindsByViewsCount(ctx context.Context, viewsCount int64) ([]*Article, error)
 	FindsByTags(ctx context.Context, tags string) ([]*Article, error)
+	FindsByStatus(ctx context.Context, status int64) ([]*Article, error)
 
 	formatUuidKey(uuid string) string
 }
@@ -122,6 +125,9 @@ func (m *defaultArticleModel) FindList(ctx context.Context, pageSize, page int64
 		}
 		if article.Tags != "" {
 			sq = sq.Where("`tags` = ?", article.Tags)
+		}
+		if article.Status >= 0 {
+			sq = sq.Where("`status` = ?", article.Status)
 		}
 	}
 	if pageSize > 0 && page > 0 {
@@ -322,6 +328,20 @@ func (m *defaultArticleModel) FindByTags(ctx context.Context, tags string) (*Art
 	}
 }
 
+func (m *defaultArticleModel) FindByStatus(ctx context.Context, status int64) (*Article, error) {
+	var resp Article
+	query := fmt.Sprintf("select %s from %s where `status` = ? limit 1", articleRows, m.table)
+	err := m.QueryRowNoCacheCtx(ctx, &resp, query, status)
+	switch err {
+	case nil:
+		return &resp, nil
+	case sqlc.ErrNotFound:
+		return nil, ErrNotFound
+	default:
+		return nil, err
+	}
+}
+
 func (m *defaultArticleModel) FindsByIds(ctx context.Context, ids []int64) ([]*Article, error) {
 	var resp = make([]*Article, 0)
 	if len(ids) == 0 {
@@ -478,6 +498,21 @@ func (m *defaultArticleModel) FindsByTagslist(ctx context.Context, tagslist []st
 	return resp, err
 }
 
+func (m *defaultArticleModel) FindsByStatuslist(ctx context.Context, statuslist []int64) ([]*Article, error) {
+	var resp = make([]*Article, 0)
+	if len(statuslist) == 0 {
+		return resp, nil
+	}
+	strs := []string{}
+	for _, v := range statuslist {
+		strs = append(strs, strconv.FormatInt(v, 10))
+	}
+	agr := strings.Join(strs, ",")
+	query := fmt.Sprintf("select %s from %s where `status` in (?)", articleRows, m.table)
+	err := m.QueryRowsNoCacheCtx(ctx, &resp, query, agr)
+	return resp, err
+}
+
 func (m *defaultArticleModel) FindsById(ctx context.Context, id int64) ([]*Article, error) {
 	var resp = make([]*Article, 0)
 	query := fmt.Sprintf("select %s from %s where `id` = ? ", articleRows, m.table)
@@ -559,6 +594,13 @@ func (m *defaultArticleModel) FindsByTags(ctx context.Context, tags string) ([]*
 	var resp = make([]*Article, 0)
 	query := fmt.Sprintf("select %s from %s where `tags` = ? ", articleRows, m.table)
 	err := m.QueryRowsNoCacheCtx(ctx, &resp, query, tags)
+	return resp, err
+}
+
+func (m *defaultArticleModel) FindsByStatus(ctx context.Context, status int64) ([]*Article, error) {
+	var resp = make([]*Article, 0)
+	query := fmt.Sprintf("select %s from %s where `status` = ? ", articleRows, m.table)
+	err := m.QueryRowsNoCacheCtx(ctx, &resp, query, status)
 	return resp, err
 }
 

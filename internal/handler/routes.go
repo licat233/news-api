@@ -44,6 +44,11 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Path:    "/details",
 				Handler: news.NewsDetailsHandler(serverCtx),
 			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/feedback",
+				Handler: news.FeedBackHandler(serverCtx),
+			},
 		},
 		rest.WithPrefix("/v1/news"),
 	)

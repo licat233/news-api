@@ -14,7 +14,7 @@ database:
     dsn: ""
     ignoreColumns: []
     ignoreTables: []
-    src: "../data/news.sql"
+    src: "./news.sql"
     tables: []
 logic:
     api:

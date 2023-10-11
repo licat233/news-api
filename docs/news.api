@@ -29,6 +29,11 @@ type NewsDetailsReq {
 	ArticleUUID string `form:"uuid"`
 }
 
+type FeedBackReq {
+	Uuid  string `json:"uuid"`
+	Field string `json:"field,optional"`
+}
+
 @server(
 	group: news
 	prefix: /v1/news
@@ -42,6 +47,9 @@ service news-api {
 
 	@handler NewsDetails
 	get /details(NewsDetailsReq) returns(Response)
+
+	@handler FeedBack
+	post /feedback(FeedBackReq) returns(Response)
 }
 
 @server(
