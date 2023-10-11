@@ -79,7 +79,7 @@ func (m *customArticleModel) Update(ctx context.Context, data *Article) error {
 }
 
 func (m *customArticleModel) Flow(ctx context.Context, categoryId int64, offset, pageSize uint64) ([]*Article, error) {
-	sq := squirrel.Select(articleRows).From(m.table).Offset(offset).Limit(pageSize).OrderBy("publish_at DESC")
+	sq := squirrel.Select(articleRows).From(m.table).Where("status=1").Offset(offset).Limit(pageSize).OrderBy("publish_at DESC")
 	if categoryId > 0 {
 		//分类
 		sq = sq.Where(squirrel.Eq{"category_id": categoryId})
@@ -94,7 +94,7 @@ func (m *customArticleModel) Flow(ctx context.Context, categoryId int64, offset,
 }
 
 func (m *customArticleModel) More(ctx context.Context, categoryId int64, limit uint64) ([]*Article, error) {
-	sq := squirrel.Select(articleRows).From(m.table).Limit(limit).OrderBy("RAND()")
+	sq := squirrel.Select(articleRows).From(m.table).Where("status=1").Limit(limit).OrderBy("RAND()")
 	if categoryId > 0 {
 		//分类
 		sq = sq.Where(squirrel.Eq{"category_id": categoryId})
