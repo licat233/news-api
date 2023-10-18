@@ -66,6 +66,7 @@ func (l *NewsFlowLogic) NewsFlow(req *types.NewsFlowReq) (any, error) {
 		data[i].CategoryId = 0
 		data[i].CreateAt = time.Time{}
 		data[i].UpdateAt = time.Time{}
+		data[i].PublishAt = time.Now()
 	}
 	return data, nil
 }

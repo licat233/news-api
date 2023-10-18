@@ -42,5 +42,6 @@ func (l *NewsDetailsLogic) NewsDetails(req *types.NewsDetailsReq) (any, error) {
 	article.CategoryId = 0
 	article.CreateAt = time.Time{}
 	article.UpdateAt = time.Time{}
+	article.PublishAt = time.Now()
 	return article, nil
 }

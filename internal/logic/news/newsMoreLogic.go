@@ -52,6 +52,7 @@ func (l *NewsMoreLogic) NewsMore(req *types.NewsMoreReq) (any, error) {
 		data[i].CategoryId = 0
 		data[i].CreateAt = time.Time{}
 		data[i].UpdateAt = time.Time{}
+		data[i].PublishAt = time.Now()
 	}
 	return data, nil
 }

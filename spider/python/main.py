@@ -19,7 +19,7 @@ pool = pymysqlpool.ConnectionPool(size=25, maxsize=25, pre_create_num=25, name='
 
 headers = {
     'user-agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Mobile Safari/537.36 Edg/110.0.1587.63',
-    #  'user-agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
+    #  'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1'
 }
 proxy = {
     "http": "http://127.0.0.1:7890",  # 代理服务器的IP地址和端口号
@@ -159,10 +159,9 @@ def insertImage(source, src):
 
 def spider_max_page_record(session, category_id):
     params = {
-        'page': 9999,
+        'page': 999,
     }
-    response = session.get(f'{baseUrl}/{category_id}/',
-                           headers=headers, params=params, proxies=proxy)
+    response = session.get(f'{baseUrl}/{category_id}/',headers=headers, params=params, proxies=proxy)
     response.raise_for_status()
     html = response.text
     soup = BeautifulSoup(html, 'html.parser')
@@ -377,14 +376,15 @@ def category_handler(category_name, category_id):
             #     aticle_handler(session, title, url, cover, uid, bar_add)
             #     sys.exit(0)
             # 使用多线程
-            tasks = []
+            # tasks = []
             for title, url, cover, uid in title_urls:
                 if title == "" or url == "" or cover == "":
                     bar_add()
                     continue
-                t = threading.Thread(target=aticle_handler, args=(session, title, url, cover, uid, bar_add), name=uid)
-                tasks.append(t)
-            process_run(tasks)
+                aticle_handler(session, title, url, cover, uid, bar_add)
+                # t = threading.Thread(target=aticle_handler, args=(session, title, url, cover, uid, bar_add), name=uid)
+            #     tasks.append(t)
+            # process_run(tasks)
         progress_bar.close()
     # 写入xlsx文件
     # df = pd.DataFrame(post_infos)
